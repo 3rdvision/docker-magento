@@ -4,9 +4,26 @@ set -o errexit
 DOMAIN=${1:-magento.test}
 VERSION=${2:-2.4.3-p1}
 EDITION=${3:-community}
+MAGENTO_MODULE_GIT="https://github.com/3rdvision/ripe-bridge-magento.git"
+MAGENTO_MODULE_PATH="Platforme/Bridge/"
 
-curl -s https://raw.githubusercontent.com/markshust/docker-magento/master/lib/template | bash
+mkdir magento \
+  && cd "$_" \
+  && curl -s https://raw.githubusercontent.com/markshust/docker-magento/master/lib/template | bash
 
 # &&'s are used below otherwise onelinesetup script fails/errors after bin/download
-bin/download "${VERSION}" "${EDITION}" \
-  && bin/setup "${DOMAIN}"
+echo "$(tput setaf 5)Get your Magento authentication keys from https://marketplace.magento.com/customer/accessKeys$(tput sgr 0)" \
+  && sleep 1 \
+  && bin/download "${VERSION}" "${EDITION}" \
+  && bin/setup "${DOMAIN}" \
+  && bin/magento sampledata:deploy \
+  && bin/magento setup:upgrade \
+  && git clone "${MAGENTO_MODULE_GIT}" "${MAGENTO_MODULE_PATH}" \
+  && sudo cp -r Platforme src/app/code/ \
+  && bin/magento module:enable Platforme_Bridge \
+  && bin/magento module:disable Magento_TwoFactorAuth \
+  && bin/magento setup:di:compile \
+  && bin/magento setup:upgrade \
+  && echo "$(tput setaf 5)Magento module root path: $PWD/src/app/code/Platforme/Bridge/$(tput sgr 0)" \
+  && echo "$(tput setaf 5)Magento website: https://magento.test$(tput sgr 0)" \
+  && python -m webbrowser https://magento.test
